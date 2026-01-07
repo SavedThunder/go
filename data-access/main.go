@@ -1,3 +1,5 @@
+// DB DRVIER: https://github.com/go-sql-driver/mysql/
+
 package main
 
 import (
@@ -7,6 +9,7 @@ import (
 	"os"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 var db *sql.DB
@@ -19,6 +22,10 @@ type Album struct {
 }
 
 func main() {
+	dotenv_err := godotenv.Load()
+	if dotenv_err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	// Capture connection properties.
 	cfg := mysql.NewConfig()
 	cfg.User = os.Getenv("DBUSER")
@@ -47,15 +54,18 @@ func main() {
 	}
 	fmt.Printf("Albums found: %v\n", albums)
 
-	albID, err := addAlbum(Album{
-		Title:  "The Modern Sound of Betty Carter",
-		Artist: "Betty Carter",
-		Price:  49.99,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("ID of added album: %v\n", albID)
+	// albID, err := addAlbum(Album{
+	// 	Title:  "The Modern Sound of Betty Carter",
+	// 	Artist: "Betty Carter",
+	// 	Price:  49.99,
+	// })
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("ID of added album: %v\n", albID)
+
+	top_albums, err := listTop5Albums()
+	fmt.Printf("Top Priced Albums: %v\n", top_albums)
 }
 
 // albumsByArtist queries for albums that have the specified artist name.
@@ -109,4 +119,23 @@ func addAlbum(alb Album) (int64, error) {
 		return 0, fmt.Errorf("addAlbum: %v", err)
 	}
 	return id, nil
+}
+
+func listTop5Albums() ([]Album, error) {
+	var albums []Album
+	rows, err := db.Query("SELECT * FROM album order by price desc limit 5")
+	if err != nil {
+		return nil, fmt.Errorf("listAlbum: %v", err)
+	}
+	for rows.Next() {
+		var alb Album
+		if err := rows.Scan(&alb.ID, &alb.Title, &alb.Artist, &alb.Price); err != nil {
+			return nil, fmt.Errorf("listAlbums: %v", err)
+		}
+		albums = append(albums, alb)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("listAlbums: %v", err)
+	}
+	return albums, nil
 }
