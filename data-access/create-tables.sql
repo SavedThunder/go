@@ -1,3 +1,7 @@
+-- create database recordings;
+
+-- use recordings;
+
 DROP TABLE IF EXISTS album;
 CREATE TABLE album (
   id         INT AUTO_INCREMENT NOT NULL,
