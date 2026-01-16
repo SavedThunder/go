@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,9 +12,8 @@ func main() {
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)
-	router.PATCH("albums/:id/price", updateAlbumPriceByID)
+	router.PATCH("albums/:id/", updateAlbumPriceByID)
 	router.POST("/albums", postAlbums)
-
 	router.Run("localhost:8080")
 }
 
@@ -25,16 +23,6 @@ type album struct {
 	Title  string  `json:"title"`
 	Artist string  `json:"artist"`
 	Price  float64 `json:"price"`
-}
-
-func updateAlbumPrice(album *album, newPrice string) (a album, err error) {
-	log.Println(newPrice)
-	f, err := strconv.ParseFloat(newPrice, 64)
-	if err != nil {
-		return *album, err
-	}
-	album.Price = f
-	return *album, err
 }
 
 // albums slice to seed record album data.
@@ -76,19 +64,27 @@ func getAlbumByID(c *gin.Context) {
 	c.IndentedJSON(http.StatusNotFound, gin.H{"message": message})
 }
 
-func updateAlbumPriceByID(c *gin.Context) {
-	id := c.Param("id")
-	newPrice := c.Param("price")
-	log.Println(newPrice)
-	for _, a := range albums {
-		if a.ID == id {
-			_, err := updateAlbumPrice(&a, newPrice)
-			if err != nil {
-				c.IndentedJSON(http.StatusInternalServerError, gin.H{"Err": err})
-				return
-			}
+type albumUpdatePriceBody struct {
+	Price float64 `json:"price" binding:"required"`
+}
 
-			c.IndentedJSON(http.StatusOK, a)
+func updateAlbumPriceByID(c *gin.Context) {
+	var patchAlbumPrice albumUpdatePriceBody
+	if err := c.ShouldBindJSON(&patchAlbumPrice); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id := c.Param("id")
+	log.Println("New Price", patchAlbumPrice.Price, "for id", id)
+
+	// NOTE: range returns two things index, and a copy of the item, not the actual item.
+	// Need to pass a reference to the item albums[i] does this for us
+
+	for i, a := range albums {
+		if a.ID == id {
+			albums[i].Price = patchAlbumPrice.Price
+			c.IndentedJSON(http.StatusOK, albums[i])
 			return
 		}
 	}
